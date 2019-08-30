@@ -65,6 +65,7 @@ class DataPre:
 
         # 筛掉低频词
         vocab_list = [word for word in word_frequency if word_frequency[word] > self.min_freq]
+        print(vocab_list)
 
         # 建立word 和 tag 对应id的词典
         for w in vocab_list:
