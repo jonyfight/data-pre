@@ -14,7 +14,7 @@ import utils_
 
 """
 1. 负责清洗数据的类，根据配置删除停用词、低频词、特殊符号，空行等等只保留中文文本信息
-2. 并转化成对应的id和词标签id号，固定句长，短补长接
+2. 并转化成对应的id和词标签id号，固定句长，短补长截。
 """
 
 class Datapre:
@@ -33,7 +33,7 @@ class Datapre:
         stop_words = set()
         for line in open("stop_words.txt",encoding="utf-8"):
             stop_words.add(line.strip())  # add()方法用于给集合添加元素，如果添加的元素在集合已存在，则不执行任何操作。
-        self.stopwords = stop_words
+        self.stop_words = stop_words
 
         # 读取违禁词
         prohibited_words = set()
@@ -44,58 +44,115 @@ class Datapre:
         """
         建立word,tag字典
         """
-        def create_dicts(self):
-            word2id, id2word, tag2id, id2tag = {"<pad>":0,"***":1},{0:"<pad>",1:"***"},{"<pad>":0,"***":1},{0:"<pad>",1:"***"}
+    def create_dicts(self):
+        word2id, id2word, tag2id, id2tag = {"<pad>":0,"***":1},{0:"<pad>",1:"***"},{"<pad>":0,"***":1},{0:"<pad>",1:"***"}
 
-            # 读取文章
-            # 词列表
-            word_list = []  # 用来存储词
-            tag_list = []  # 用来存储词性
-            for line in open(self.file_path,"r",encoding="utf-8"):
-                line = line.strip()
-                # 判断文章内容是否为中文，是就保存字符串
-                content = ""
-                for i in line:
-                    # \u4e00-\u9fa5是用来判断是不是中文的一个条件，采用的是unicode编码
-                    if i >= u'\u4e00' and i <= '\u9fa5':
-                        content += i
+        # 读取文章
+        # 词列表
+        word_list = []  # 用来存储词
+        tag_list = []  # 用来存储词性
+        for line in open(self.file_path,"r",encoding="utf-8"):
+            line = line.strip()
+            # 判断文章内容是否为中文，是就保存字符串
+            content = ""
+            for i in line:
+                # \u4e00-\u9fa5是用来判断是不是中文的一个条件，采用的是unicode编码
+                if i >= u'\u4e00' and i <= '\u9fa5':
+                    content += i
 
-                # 获取分词及词性
-                res = pseg.cut()  # 分词并获得词性
-                for w in res:
-                    if w.word in self.stop_words:  # 如果遍历文章内容出现停用词，则跳过
-                        continue
-                    elif w.word in self.prohibited_words:  # 如果遍历文章内容出现违禁词，则跳过
-                        continue
-                    else:
-                        word_list.append(w.word)  # word函数获取词
-                        tag_list.append(w.flag)  # flag函数获取词性
+            # 获取分词及词性
+            res = pseg.cut()  # 分词并获得词性
+            for w in res:
+                if w.word in self.stop_words:  # 如果遍历文章内容出现停用词，则跳过
+                    continue
+                elif w.word in self.prohibited_words:  # 如果遍历文章内容出现违禁词，则跳过
+                    continue
+                else:
+                    word_list.append(w.word)  # word函数获取词
+                    tag_list.append(w.flag)  # flag函数获取词性
 
-            # 词频 dict
-            # 在很多使用到dict和次数的场景下，Python中用Counter来实现会非常简洁，效率也会很高
-            word_frequency = Counter(word_list) # Counter()来统计每个词出现次数，是个字典形式
+        # 词频 dict
+        # 在很多使用到dict和次数的场景下，Python中用Counter来实现会非常简洁，效率也会很高
+        word_frequency = Counter(word_list) # Counter()来统计每个词出现次数，是个字典形式
 
-            # 筛掉低频词,保留频次大于1的词
-            vocab_list = [word for word in word_frequency if word_frequency[word] > self.min_freq]
+        # 筛掉低频词,保留频次大于1的词
+        vocab_list = [word for word in word_frequency if word_frequency[word] > self.min_freq]
 
-            # 去掉停用词、违禁词、低频词后，建立word和tag对应id的词典
-            # 下面两段还没理解
-            for w in vocab_list:
-                if w not in word2id:
-                    word2id[w] = len(word2id)  # len(word2id)求出word2id元素个数即键的总数
-                    id2word[len(id2word)] = w  # len(id2word)求出id2word元素个数即键的总数
+        # 去掉停用词、违禁词、低频词后，建立word和tag对应id的词典
+        # 下面两段还没理解
+        for w in vocab_list:
+            if w not in word2id:
+                word2id[w] = len(word2id)  # len(word2id)求出word2id元素个数即键的总数
+                id2word[len(id2word)] = w  # len(id2word)求出id2word元素个数即键的总数
 
-            for t in tag_list:
-                if t not in tag2id:
-                    tag2id[t] = len(tag2id)  # len(tag2id)求出tag2id元素个数即键的总数
-                    id2tag[len(id2tag)] = t  # len(id2tag)求出id2tag元素个数即键的总数
+        for t in tag_list:
+            if t not in tag2id:
+                tag2id[t] = len(tag2id)  # len(tag2id)求出tag2id元素个数即键的总数
+                id2tag[len(id2tag)] = t  # len(id2tag)求出id2tag元素个数即键的总数
 
-            # 将字典存为pkl文件
-            dicts = {"word2id":word2id,"id2word":id2word,"tag2id":tag2id,"id2tag":id2tag}
-            pkl.dump(dicts,open(self.dict_path,"wb"))
-            return
+        # 将字典存为pkl文件
+        dicts = {"word2id":word2id,"id2word":id2word,"tag2id":tag2id,"id2tag":id2tag}
+        pkl.dump(dicts,open(self.dict_path,"wb"))
+        return
 
-        """
-        获取最终结果，为一个list，其中每一项都是固定句长的一行的list，内部分别是word_id和tag_id
-        """
-        def data2id(self):
+    """
+    获取最终结果，为一个list，其中每一项都是固定句长的一行的list，内部分别是word_id和tag_id
+    """
+    def data2id(self):
+        result = []
+        # 加载字典
+        dicts = self.load_dicts()
+        word2id, tag2id = dicts["word2id"], dicts["tag2id"]
+        for line in open(self.file_path,"r",encoding="utf-8"):
+            line = line.strip()
+            ids, sen = [], ""
+            # 去除空行及除中文以外的符号
+            if(line == ""):
+                continue
+            for i in line:
+                if i >= u"\u4e00" and i <= u"\u9fa5":
+                    sen += i
+            res = pseg.cut(sen)
+            for w in res:
+                if w.word in self.prohibited_words:
+                    ids.append((word2id["***"],tag2id["***"]))
+                elif w.word in word2id:
+                    ids.append((word2id[w.word],tag2id[w.flag]))
+                else:
+                    # 这些都是低频词/停用词,不需要处理，直接pass
+                    pass
+
+            # 进行长度控制
+            ids = utils_.pad(ids, self.sen_len, self.pad_back)
+            # 添加每个sentence的list到结果的list里面
+            result.append(ids)
+        return result
+
+    """
+    将结果解析回中文词和词性
+    """
+    def id2data(self,result):
+        data = []
+        # 加载字典
+        dicts = self.load_dicts()
+        id2word, id2tag = dicts["id2word"], dicts["id2tag"]
+
+        for ids in result:
+            data.append([(id2word[word_id], id2tag[tag_id]) for (word_id, tag_id) in ids])
+        return data
+
+    """
+    加载字典
+    """
+    def load_docts(self):
+        # os.path.exists()判断括号里的文件是否存在的意思，括号内的可以是文件路径
+        if os.path.exists(self.dict_path):
+            dicts = pkl.load(self.dict_path, "rb")
+        else:
+            self.create_dicts()  # 不存在则创建一个
+            dicts = pkl.load(open(self.dict_path, "rb"))
+        return dicts
+
+if __name__=="__main__":
+    c = Datapre()
+    print(c.data2id)
